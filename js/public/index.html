@@ -1,0 +1,113 @@
+<html>
+<!--
+Copyright 2017 Google Inc.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BabelFire</title>
+  <script src="https://www.gstatic.com/firebasejs/3.6.4/firebase.js"></script>
+  <script>
+  // Initialize Firebase
+  var config = {
+      apiKey: "AIzaSyAjskV1Uf7hNmEkfzc-iWo9gSbBHyFKlwo",
+      authDomain: "mimming-babelfire.firebaseapp.com",
+      databaseURL: "https://mimming-babelfire.firebaseio.com",
+      storageBucket: "mimming-babelfire.appspot.com",
+      messagingSenderId: "913948787505"
+  };
+  firebase.initializeApp(config);
+  </script>
+  <script type="text/javascript">
+  window.addEventListener("DOMContentLoaded", e => {
+    var languageSelect = document.getElementById("language");
+
+    var storage = firebase.storage();
+    var uploadsStorageRef = storage.ref("uploads");
+
+    var database = firebase.database();
+    var uploadsRef = database.ref("uploads");
+    let transcriptsRef = database.ref("transcripts")
+    let translationsRef = database.ref("translations")
+
+    var transcript = document.getElementById("transcript")
+    var translation = document.getElementById("translation");
+    var language, key;
+
+    transcriptsRef.orderByKey().limitToLast(1).on("child_added", snapshot => {
+      transcript.innerText = snapshot.val().text;
+      translation.innerText = "";
+      key = snapshot.key;
+      waitForTranslation();
+    });
+    function waitForTranslation() {
+      translationsRef.off();
+      translationsRef.child(key).child(language).on("value", snapshot => {
+        var value = snapshot.val();
+        if (value) {
+          translation.innerText = value.text;
+          speak(value.text, value.language);
+        }
+      })
+    }
+    function speak(text, lang) {
+      var voices = window.speechSynthesis.getVoices().filter(v => lang==v.lang);
+      var msg = new SpeechSynthesisUtterance();
+      msg.text = text;
+      msg.lang = lang;
+      msg.voice = voices[0];
+      msg.voiceURI = "native";
+      window.speechSynthesis.speak(msg);
+    }
+    languageSelect.addEventListener("change", e => {
+      language = languageSelect.children[languageSelect.selectedIndex].value;
+      waitForTranslation();
+    });
+    language = languageSelect.children[languageSelect.selectedIndex].value;
+  });
+  </script>
+</head>
+<body>
+  <h1>BabelFire</h1>
+  <p>This webpage plays back the last sentence spoken on stage in the language you select.</p>
+
+  <div id="transcript_box" class="box">
+    <label for="transcript">Transcript</label>
+    <div id="transcript"></div>
+  </div>
+
+  <div id="translation_box" class="box">
+    <label for="language">Select language</label>
+    <select id="language" name="language">
+      <option value="en">English (United States)</option>
+      <option value="es" selected="selected">Español (España)</option>
+      <option value="pt">Português (Brasil)</option>
+      <option value="de">Deutsch (Deutschland)</option>
+      <option value="ja">日本語（日本）</option>
+      <option value="hi">हिन्दी (भारत)</option>
+      <option value="nl">Nederlands (Nederland)</option>
+    </select>
+    <br/>
+    <label for="translation">Translation</label>
+    <div id="translation"></div>
+  </div>
+<style>
+  div.box {
+    background: #ECEFF1;
+    padding: 20px;
+  }
+</style>
+</body>
+</html>

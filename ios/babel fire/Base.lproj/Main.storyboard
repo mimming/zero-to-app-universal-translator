@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+Copyright 2017 Google Inc.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="10116" systemVersion="15G1217" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" initialViewController="x8y-CX-bTL">
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="10085"/>
+        <capability name="Constraints to layout margins" minToolsVersion="6.0"/>
+    </dependencies>
+    <scenes>
+        <!--View Controller-->
+        <scene sceneID="tne-QT-ifu">
+            <objects>
+                <viewController id="BYZ-38-t0r" customClass="ViewController" customModule="babel_fire" customModuleProvider="target" sceneMemberID="viewController">
+                    <layoutGuides>
+                        <viewControllerLayoutGuide type="top" id="y3c-jy-aDJ"/>
+                        <viewControllerLayoutGuide type="bottom" id="wfy-db-euE"/>
+                    </layoutGuides>
+                    <view key="view" contentMode="scaleToFill" id="8bC-Xf-vdC">
+                        <rect key="frame" x="0.0" y="0.0" width="600" height="600"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="gJX-FA-DfI">
+                                <rect key="frame" x="276" y="285" width="49" height="30"/>
+                                <state key="normal" title="Record"/>
+                                <connections>
+                                    <action selector="recordButtonPressed:" destination="BYZ-38-t0r" eventType="touchUpInside" id="bbv-3V-9y9"/>
+                                </connections>
+                            </button>
+                            <pickerView contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="kc5-vE-e0a">
+                                <rect key="frame" x="20" y="64" width="560" height="216"/>
+                            </pickerView>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Translated:" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="qFj-Fa-Bag">
+                                <rect key="frame" x="20" y="312" width="86" height="21"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                <color key="textColor" cocoaTouchSystemColor="darkTextColor"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                            <textView clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" editable="NO" textAlignment="natural" selectable="NO" translatesAutoresizingMaskIntoConstraints="NO" id="q4H-6q-0Gr">
+                                <rect key="frame" x="20" y="341" width="560" height="239"/>
+                                <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
+                                <mutableString key="text">Cardigan tbh distillery, ugh gluten-free sustainable artisan kinfolk taxidermy actually narwhal intelligentsia. Polaroid bushwick +1, la croix fam coloring book lumbersexual chia normcore tacos jianbing cornhole snackwave brooklyn. Biodiesel kickstarter pitchfork, viral shabby chic organic ramps lo-fi chia umami mixtape actually. Banh mi four loko man braid austin, deep v marfa skateboard farm-to-table locavore meggings lo-fi glossier ethical. Drinking vinegar polaroid try-hard, quinoa copper mug XOXO ugh pour-over. Microdosing ramps flexitarian everyday carry, celiac seitan austin intelligentsia asymmetrical butcher. Bushwick church-key post-ironic truffaut.</mutableString>
+                                <fontDescription key="fontDescription" type="system" pointSize="14"/>
+                                <textInputTraits key="textInputTraits" autocapitalizationType="sentences"/>
+                            </textView>
+                        </subviews>
+                        <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="calibratedWhite"/>
+                        <constraints>
+                            <constraint firstItem="kc5-vE-e0a" firstAttribute="trailing" secondItem="8bC-Xf-vdC" secondAttribute="trailingMargin" id="4kF-Zm-83M"/>
+                            <constraint firstItem="kc5-vE-e0a" firstAttribute="top" secondItem="y3c-jy-aDJ" secondAttribute="bottom" id="EWF-HB-lUo"/>
+                            <constraint firstItem="kc5-vE-e0a" firstAttribute="leading" secondItem="8bC-Xf-vdC" secondAttribute="leadingMargin" id="U4L-OV-p7V"/>
+                            <constraint firstItem="q4H-6q-0Gr" firstAttribute="top" secondItem="qFj-Fa-Bag" secondAttribute="bottom" constant="8" symbolic="YES" id="Zf4-M2-fT4"/>
+                            <constraint firstItem="q4H-6q-0Gr" firstAttribute="top" secondItem="gJX-FA-DfI" secondAttribute="bottom" constant="26" id="cXZ-jW-rvH"/>
+                            <constraint firstItem="gJX-FA-DfI" firstAttribute="centerY" secondItem="8bC-Xf-vdC" secondAttribute="centerY" id="ddy-6v-TXu"/>
+                            <constraint firstItem="kc5-vE-e0a" firstAttribute="trailing" secondItem="q4H-6q-0Gr" secondAttribute="trailing" id="hFc-hV-hme"/>
+                            <constraint firstItem="kc5-vE-e0a" firstAttribute="leading" secondItem="qFj-Fa-Bag" secondAttribute="leading" id="mtE-hp-NGR"/>
+                            <constraint firstItem="kc5-vE-e0a" firstAttribute="centerX" secondItem="gJX-FA-DfI" secondAttribute="centerX" id="uq0-eT-rUE"/>
+                            <constraint firstItem="qFj-Fa-Bag" firstAttribute="leading" secondItem="q4H-6q-0Gr" secondAttribute="leading" id="x0H-Uv-Hqn"/>
+                            <constraint firstAttribute="bottom" secondItem="q4H-6q-0Gr" secondAttribute="bottom" constant="20" symbolic="YES" id="yXf-MT-tBZ"/>
+                        </constraints>
+                    </view>
+                    <navigationItem key="navigationItem" id="2vY-Wp-0p0"/>
+                    <connections>
+                        <outlet property="languagePicker" destination="kc5-vE-e0a" id="r4G-Z1-shd"/>
+                        <outlet property="recordButton" destination="gJX-FA-DfI" id="5dc-dX-7Qz"/>
+                        <outlet property="translatedTextView" destination="q4H-6q-0Gr" id="fwK-iB-pJT"/>
+                    </connections>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="dkx-z0-nzr" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="602" y="657"/>
+        </scene>
+        <!--Navigation Controller-->
+        <scene sceneID="ZeM-Lt-IN9">
+            <objects>
+                <navigationController id="x8y-CX-bTL" sceneMemberID="viewController">
+                    <navigationBar key="navigationBar" contentMode="scaleToFill" id="cTr-JJ-3mF">
+                        <rect key="frame" x="0.0" y="0.0" width="320" height="44"/>
+                        <autoresizingMask key="autoresizingMask"/>
+                    </navigationBar>
+                    <connections>
+                        <segue destination="BYZ-38-t0r" kind="relationship" relationship="rootViewController" id="HcS-ie-Vrz"/>
+                    </connections>
+                </navigationController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="AQN-WU-ld3" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="-208" y="657"/>
+        </scene>
+    </scenes>
+</document>

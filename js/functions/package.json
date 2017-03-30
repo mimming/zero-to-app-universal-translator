@@ -1,0 +1,18 @@
+{
+  "name": "functions",
+  "description": "Firebase Functions",
+  "dependencies": {
+    "@google-cloud/speech": "^0.5.0",
+    "@google-cloud/storage": "^0.6.1",
+    "@google-cloud/translate": "^0.6.0",
+    "ffmpeg.js": "^3.1.9001",
+    "firebase-admin": "^4.1.1",
+    "firebase-functions": "https://storage.googleapis.com/firebase-preview-drop/node/firebase-functions/firebase-functions-preview.latest.tar.gz",
+    "google-auth-library": "^0.9.10",
+    "googleapis": "^15.1.0",
+    "grpc": "^1.0.1",
+    "install": "^0.8.4",
+    "npm": "^4.0.5",
+    "request": "^2.79.0"
+  }
+}
