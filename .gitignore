@@ -31,3 +31,4 @@ ios/babel fire/GoogleService-Info.plist
 
 js/functions/node_modules/
 js/functions/service-account-credentials.json
+**yarn.lock
