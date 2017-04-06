@@ -15,7 +15,7 @@
 0. Log in to the [Cloud Console](https://console.cloud.google.com).
 0. Go to **API Manager** -> **Library** and enable both the Google Cloud Translation API and the Google Cloud Speech API.
 0. Go to **IAM & Admin** -> **Service Accounts**.
-0. Create a new service account with **Project -> Viewer** role.  Furnish a new private key, with key type json.  A credential file will download.  Rename it to `service-account-credentails.json` and copy it to `/functions`.
+0. Create a new service account with **Project -> Viewer** role.  Furnish a new private key, with key type json.  A credential file will download.  Rename it to `service-account-credentials.json` and copy it to `/functions`.
 0. Deploy the Cloud Functions [with the Firebase CLI](https://firebase.google.com/docs/functions/get-started)
 
 ## Files
