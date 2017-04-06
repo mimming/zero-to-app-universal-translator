@@ -33,8 +33,9 @@ exports.onUpload = functions.database
         var language = data.language ? data.language : "en";
         var encoding = data.encoding ? data.encoding : "FLAC";
         var sampleRate = data.sampleRate ? data.sampleRate : 16000;
+        var storageBucket = functions.config().firebase.storageBucket;
 
-        return speech.recognize(`gs://mimming-babelfire.appspot.com/${data.fullPath}`, {
+        return speech.recognize(`gs://${storageBucket}/${data.fullPath}`, {
             encoding: encoding,
             sampleRate: sampleRate,
             languageCode: language
