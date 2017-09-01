@@ -70,6 +70,8 @@ public class MainActivity extends AppCompatActivity {
         put("日本語（日本）", "ja-JP");
         put("हिन्दी (भारत)", "hi-IN");
         put("Nederlands (Nederland)", "nl-NL");
+        put("French (France)", "fr-FR");
+        put("Polish (Poland)", "pl-PL");
     }};
     private static final Map<String, String> LANGUAGE_SHORT_CODES = new HashMap<String, String>() {{
         put("English (United States)", "en");
@@ -79,6 +81,8 @@ public class MainActivity extends AppCompatActivity {
         put("日本語（日本）", "ja");
         put("हिन्दी (भारत)", "hi");
         put("Nederlands (Nederland)", "nl");
+        put("French (France)", "fr");
+        put("Polish (Poland)", "pl");
     }};
 
     public static final short RC_SIGN_IN = 42;

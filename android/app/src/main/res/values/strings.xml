@@ -22,11 +22,13 @@ Copyright 2017 Google Inc.
     <string name="record">Record</string>
     <string-array name="language_choices">
         <item>English (United States)</item>
-        <item>Español (España)</item>
-        <item>Português (Brasil)</item>
+        <item>French (France)</item>
+        <item>Polish (Poland)</item>
         <item>Deutsch (Deutschland)</item>
+        <item>Español (España)</item>
+        <item>Nederlands (Nederland)</item>
+        <item>Português (Brasil)</item>
         <item>日本語（日本）</item>
         <item>हिन्दी (भारत)</item>
-        <item>Nederlands (Nederland)</item>
     </string-array>
 </resources>
