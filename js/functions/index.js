@@ -13,7 +13,7 @@
 //  limitations under the License.
 
 
-var functions = require('firebase-functions');
+const functions = require('firebase-functions');
 const Speech = require('@google-cloud/speech');
 const speech = Speech({keyFilename: "service-account-credentials.json"});
 const Translate = require('@google-cloud/translate');
@@ -29,17 +29,32 @@ function getLanguageWithoutLocale(languageCode) {
 exports.onUpload = functions.database
     .ref("/uploads/{uploadId}")
     .onWrite((event) => {
+
+    /*
+    var data = {'fullPath': 'uploads/-KsyT4AsgPH7KFhnb204.amr'}
+     */
         var data = event.data.val();
         var language = data.language ? data.language : "en";
-        var encoding = data.encoding ? data.encoding : "FLAC";
         var sampleRate = data.sampleRate ? data.sampleRate : 16000;
 
-        return speech.recognize(`gs://mimming-babelfire.appspot.com/${data.fullPath}`, {
-            encoding: encoding,
-            sampleRate: sampleRate,
-            languageCode: language
-        }).then((results) => {
-            var transcript = results[0];
+        var encoding = Speech.v1.types.RecognitionConfig.AudioEncoding.AMR;
+        if(data.encoding == "FLAC") {
+            encoding = Speech.v1.types.RecognitionConfig.AudioEncoding.FLAC;
+        }
+
+        console.log(`attempting to recognize ${data.fullPath}`);
+
+        var request = {
+            config: {
+                languageCode : language,
+                sampleRateHertz : sampleRate,
+                encoding : encoding
+            },
+            audio: { uri : `gs://mimming-babelfire.appspot.com/${data.fullPath}` }
+        };
+
+        return speech.recognize(request).then((response) => {
+            let transcript = response[0].results[0].alternatives[0].transcript;
             return event.data.adminRef.root
                 .child("transcripts").child(event.params.uploadId)
                 .set({text: transcript, language: language});
@@ -51,7 +66,7 @@ exports.onTranscript = functions.database
     .onWrite((event) => {
         var value = event.data.val();
         var text = value.text ? value.text : value;
-        var languages = ["en", "es", "pt", "de", "ja", "hi", "nl"];
+        var languages = ["en", "es", "pt", "de", "ja", "hi", "nl", "fr", "pl"];
         // all supported languages: https://cloud.google.com/translate/docs/languages
         var from = value.language ? getLanguageWithoutLocale(value.language) : "en";
         var promises = languages.map(to => {
