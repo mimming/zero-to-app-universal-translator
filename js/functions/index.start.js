@@ -12,12 +12,12 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-
-var functions = require('firebase-functions');
+const functions = require('firebase-functions');
 const Speech = require('@google-cloud/speech');
 const speech = Speech({keyFilename: "service-account-credentials.json"});
 const Translate = require('@google-cloud/translate');
 const translate = Translate({keyFilename: "service-account-credentials.json"});
+const Encoding = Speech.v1.types.RecognitionConfig.AudioEncoding;
 
 function getLanguageWithoutLocale(languageCode) {
     if (languageCode.indexOf("-") >= 0) {
