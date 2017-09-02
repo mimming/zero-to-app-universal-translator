@@ -18,6 +18,7 @@ const Speech = require('@google-cloud/speech');
 const speech = Speech({keyFilename: "service-account-credentials.json"});
 const Translate = require('@google-cloud/translate');
 const translate = Translate({keyFilename: "service-account-credentials.json"});
+const Encoding = Speech.v1.types.RecognitionConfig.AudioEncoding;
 
 function getLanguageWithoutLocale(languageCode) {
     if (languageCode.indexOf("-") >= 0) {
@@ -29,22 +30,12 @@ function getLanguageWithoutLocale(languageCode) {
 exports.onUpload = functions.database
     .ref("/uploads/{uploadId}")
     .onWrite((event) => {
+        let data = event.data.val();
+        let language = data.language ? data.language : "en";
+        let sampleRate = data.sampleRate ? data.sampleRate : 16000;
+        let encoding = data.encoding == "FLAC" ? Encoding.FLAC : Encoding.AMR;
 
-    /*
-    var data = {'fullPath': 'uploads/-KsyT4AsgPH7KFhnb204.amr'}
-     */
-        var data = event.data.val();
-        var language = data.language ? data.language : "en";
-        var sampleRate = data.sampleRate ? data.sampleRate : 16000;
-
-        var encoding = Speech.v1.types.RecognitionConfig.AudioEncoding.AMR;
-        if(data.encoding == "FLAC") {
-            encoding = Speech.v1.types.RecognitionConfig.AudioEncoding.FLAC;
-        }
-
-        console.log(`attempting to recognize ${data.fullPath}`);
-
-        var request = {
+        let request = {
             config: {
                 languageCode : language,
                 sampleRateHertz : sampleRate,
@@ -64,27 +55,30 @@ exports.onUpload = functions.database
 exports.onTranscript = functions.database
     .ref("/transcripts/{transcriptId}")
     .onWrite((event) => {
-        var value = event.data.val();
-        var text = value.text ? value.text : value;
-        var languages = ["en", "es", "pt", "de", "ja", "hi", "nl", "fr", "pl"];
-        // all supported languages: https://cloud.google.com/translate/docs/languages
-        var from = value.language ? getLanguageWithoutLocale(value.language) : "en";
-        var promises = languages.map(to => {
+        let value = event.data.val();
+        let transcriptId = event.params.transcriptId;
+        let text = value.text ? value.text : value;
+        let languages = ["en", "es", "pt", "de", "ja", "hi", "nl", "fr", "pl"];
+        // All supported languages: https://cloud.google.com/translate/docs/languages
+
+        let from = value.language ? getLanguageWithoutLocale(value.language) : "en";
+        let promises = languages.map(to => {
             console.log(`translating from '${from}' to '${to}', text '${text}'`);
-            // call the Google Cloud Platform Translate API
+            // Call the Google Cloud Platform Translate API
+
             if (from == to) {
                 return event.data.adminRef.root
-                    .child("translations").child(event.params.transcriptId).child(to)
+                    .child("translations").child(transcriptId).child(to)
                     .set({text: text, language: from});
             } else {
                 return translate.translate(text, {
                     from: from,
                     to: to
                 }).then(result => {
-                    // write the translation to the database
-                    translation = result[0];
+                    // Write the translation to the database
+                    let translation = result[0];
                     return event.data.adminRef.root
-                        .child("translations").child(event.params.transcriptId).child(to)
+                        .child("translations").child(transcriptId).child(to)
                         .set({text: translation, language: to});
                 });
             }
