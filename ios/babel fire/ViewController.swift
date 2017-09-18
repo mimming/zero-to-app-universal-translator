@@ -79,9 +79,9 @@ class ViewController: UIViewController, UIPickerViewDataSource, UIPickerViewDele
     var synthesizer: AVSpeechSynthesizer!
 
     // Firebase
-    var storage: FIRStorage!
-    var database: FIRDatabase!
-    var auth: FIRAuth!
+    var storage: Storage!
+    var database: Database!
+    var auth: Auth!
 
     var authUI: FUIAuth?
 
@@ -116,9 +116,9 @@ class ViewController: UIViewController, UIPickerViewDataSource, UIPickerViewDele
 
         // TODO 1: Set up Firebase (1)
         // Set up Firebase
-        self.storage = FIRStorage.storage()
-        self.auth = FIRAuth.auth()
-        self.database = FIRDatabase.database()
+        self.storage = Storage.storage()
+        self.auth = Auth.auth()
+        self.database = Database.database()
 
         // TODO: init FirebaseUI Auth (5)
         // Set up FirebaseUI
@@ -224,14 +224,14 @@ class ViewController: UIViewController, UIPickerViewDataSource, UIPickerViewDele
         let uploadRef = self.storage.reference().child("uploads")
         let dbRef = self.database.reference().child("uploads").childByAutoId()
         let uploadFile = uploadRef.child(dbRef.key)
-        let metadata = FIRStorageMetadata()
+        let metadata = StorageMetadata()
         metadata.contentType = "LINEAR16"
 
         // Upload the file
-        uploadFile.putFile(file, metadata: metadata) { (metadata, error) in
+        uploadFile.putFile(from: file, metadata: metadata) { (metadata, error) in
             // handle failure
             if (error != nil) {
-                self.toast(message: "Failed to upload audio: \(error)")
+                self.toast(message: "Failed to upload audio: \(String(describing: error))")
             } else {
                 self.toast(message: "Uploaded!")
                 let dict = [
@@ -242,7 +242,7 @@ class ViewController: UIViewController, UIPickerViewDataSource, UIPickerViewDele
                 ] as [String : Any]
                 dbRef.setValue(dict, withCompletionBlock: { (error, ref) in
                     if (error != nil) {
-                        self.toast(message: "Failed to write to the database: \(error)")
+                        self.toast(message: "Failed to write to the database: \(String(describing: error))")
                     }
                 })
             }
@@ -267,9 +267,9 @@ class ViewController: UIViewController, UIPickerViewDataSource, UIPickerViewDele
     }
 
     // FUIAuthDelegate
-    func authUI(_ authUI: FUIAuth, didSignInWith user: FIRUser?, error: Error?) {
+    func authUI(_ authUI: FUIAuth, didSignInWith user: User?, error: Error?) {
         if (error != nil) {
-            print("Failed to sign user in: \(error)")
+            print("Failed to sign user in: \(String(describing: error))")
             return
         }
     }
@@ -284,7 +284,7 @@ class ViewController: UIViewController, UIPickerViewDataSource, UIPickerViewDele
         })
     }
 
-    func listenForLanguage(translationRef: FIRDatabaseReference, languageCode: String) {
+    func listenForLanguage(translationRef: DatabaseReference, languageCode: String) {
         // TODO: wait for our language (9-10)
         // Wait for our language to appear
         let languageRef = translationRef.child(languageCode)
