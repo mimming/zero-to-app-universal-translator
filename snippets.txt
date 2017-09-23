@@ -132,6 +132,100 @@ limitations under the License.
             });
 
 
+# iOS
+
+;zni1
+
+        // Set up Firebase
+        self.storage = FIRStorage.storage()
+        self.auth = FIRAuth.auth()
+        self.database = FIRDatabase.database()
+
+;zni2
+
+        // find local file
+        let file = documentsDirectory().appendingPathComponent(fileName)
+
+        // Get storage reference and build metadata
+        let uploadRef = self.storage.reference().child("uploads")
+        let dbRef = self.database.reference().child("uploads").childByAutoId()
+        let uploadFile = uploadRef.child(dbRef.key)
+        let metadata = FIRStorageMetadata()
+        metadata.contentType = "LINEAR16"
+
+;zni3
+
+        // Upload the file
+        uploadFile.putFile(file, metadata: metadata) { (metadata, error) in
+            // handle failure
+            if (error != nil) {
+                self.toast(message: "Failed to upload audio: \(error)")
+            } else {
+                self.toast(message: "Uploaded!")
+            }
+        }
+
+;zni4
+
+                let dict = [
+                    "encoding": "LINEAR16",
+                    "sampleRate": 16000,
+                    "language": (self.languageDict[self.selectedLanguage]?["locale"])! as String,
+                    "fullPath": "uploads/\(dbRef.key)"
+                ] as [String : Any]
+                dbRef.setValue(dict, withCompletionBlock: { (error, ref) in
+                    if (error != nil) {
+                        self.toast(message: "Failed to write to the database: \(error)")
+                    }
+                })
+
+;zni5
+
+        // Set up FirebaseUI
+        self.authUI = FUIAuth.defaultAuthUI()
+        self.authUI?.delegate = self
+        self.authUI?.providers = [
+            FUIGoogleAuth()
+        ]
+
+;zni6
+
+        if (self.auth.currentUser == nil) {
+            // No current user, so show a sign in view
+            self.navigationItem.rightBarButtonItem?.title = "Log in"
+            let authViewController = self.authUI?.authViewController()
+            self.present(authViewController!, animated: true, completion: nil)
+        } else {
+            self.navigationItem.rightBarButtonItem?.title = "Log out"
+            listenForTranslations()
+        }
+
+;zni7
+
+        // Get a reference to translations
+        let translationsRef = self.database.reference().child("translations")
+
+;zni8
+
+        // Listen to last child added
+        translationsRef.queryLimited(toLast: 1).observe(.childAdded, with: { (snapshot) in
+            self.listenForLanguage(translationRef: snapshot.ref, languageCode: self.selectedLanguage)
+        })
+
+;zni9
+
+        // Wait for our language to appear
+        let languageRef = translationRef.child(languageCode)
+        languageRef.observe(.value, with: { (snapshot) in
+            if (snapshot.value != nil) {
+                guard let data = snapshot.value as? [String: String] else { print("failure"); return }
+                // Play the translation through the local text-to-speech
+                let translation = data["text"]
+                self.updateAndPlay(text: translation!)
+            }
+        })
+
+
 
 # Cloud Functions
 
