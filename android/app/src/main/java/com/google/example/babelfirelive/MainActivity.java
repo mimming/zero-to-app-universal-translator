@@ -14,7 +14,7 @@
 *  limitations under the License.
 */
 
-package com.google.example.babelfire;
+package com.google.example.babelfirelive;
 
 import android.content.Intent;
 import android.media.MediaRecorder;
@@ -221,6 +221,7 @@ public class MainActivity extends AppCompatActivity {
         mRecordButton = (Button) findViewById(R.id.record_button);
         mRecordButton.setOnClickListener(mRecordButtonListener);
 
+        // Cheer if you read this comment! 1
         // Set up Firebase
         mDatabase = FirebaseDatabase.getInstance();
         mStorage = FirebaseStorage.getInstance();
@@ -240,9 +241,9 @@ public class MainActivity extends AppCompatActivity {
             // logged in.  Time to listen for new translations.
             listenForTranslations();
         }
-    }
+    } // 5-6
 
-    private void uploadFile() {
+    private void uploadFile() { // 2-4
         // Get storage ref, and build metadata
         StorageReference uploadRef = mStorage.getReference().child("uploads");
         final DatabaseReference dbRef = mDatabase.getReference("uploads").push();
@@ -274,7 +275,7 @@ public class MainActivity extends AppCompatActivity {
             });
     }
 
-    private void listenForTranslations() {
+    private void listenForTranslations() { // 7-8
         // Get a reference to translations
         DatabaseReference translationsRef = mDatabase.getReference().child("translations");
 
@@ -293,7 +294,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void listenForLanguage(String translationKey, final String languageCode) {
-        if(translationKey != null) {
+        if(translationKey != null) { // 9-10
             DatabaseReference langRef = mDatabase.getReference().child("translations")
                 .child(translationKey).child(languageCode).child("text");
 

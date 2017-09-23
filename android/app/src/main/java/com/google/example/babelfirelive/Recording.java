@@ -14,7 +14,7 @@
 *  limitations under the License.
 */
 
-package com.google.example.babelfire;
+package com.google.example.babelfirelive;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;

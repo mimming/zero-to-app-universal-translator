@@ -23,7 +23,7 @@ Copyright 2017 Google Inc.
     android:paddingLeft="@dimen/activity_horizontal_margin"
     android:paddingRight="@dimen/activity_horizontal_margin"
     android:paddingTop="@dimen/activity_vertical_margin"
-    tools:context="com.google.example.babelfire.StartActivity">
+    tools:context="com.google.example.babelfirelive.StartActivity">
 
     <LinearLayout
         android:orientation="vertical"

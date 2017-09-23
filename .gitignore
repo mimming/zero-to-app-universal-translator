@@ -21,6 +21,8 @@ android/local.properties
 **swp
 
 android/app/google-services.json
+android/app/google-services-demo.json
+android/app/google-services-live.json
 
 ios/Podfile.lock
 ios/Pods/
@@ -30,5 +32,5 @@ ios/babel fire.xcodeproj/project.xcworkspace/xcuserdata/
 ios/babel fire/GoogleService-Info.plist
 
 js/functions/node_modules/
-js/functions/service-account-credentials.json
+js/functions/service-account-credentials*.json
 **yarn.lock
