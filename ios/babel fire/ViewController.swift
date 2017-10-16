@@ -21,7 +21,7 @@ import Firebase
 import FirebaseAuthUI
 import FirebaseGoogleAuthUI
 
-class ViewController: UIViewController, UIPickerViewDataSource, UIPickerViewDelegate, AVAudioRecorderDelegate, AVSpeechSynthesizerDelegate, FUIAuthDelegate {
+class ViewController: UIViewController, UIPickerViewDataSource, UIPickerViewDelegate, AVAudioRecorderDelegate, AVSpeechSynthesizerDelegate, AVAudioPlayerDelegate, FUIAuthDelegate {
 
     // Global mutable state zomg evil
     var selectedLanguage: String = "en"
@@ -80,7 +80,7 @@ class ViewController: UIViewController, UIPickerViewDataSource, UIPickerViewDele
 
     // Firebase
     var storage: Storage!
-    var database: Database!
+    var database: Firestore!
     var auth: Auth!
 
     var authUI: FUIAuth?
@@ -118,7 +118,7 @@ class ViewController: UIViewController, UIPickerViewDataSource, UIPickerViewDele
         // Set up Firebase
         self.storage = Storage.storage()
         self.auth = Auth.auth()
-        self.database = Database.database()
+        self.database = Firestore.firestore()
 
         // TODO: init FirebaseUI Auth (5)
         // Set up FirebaseUI
@@ -222,8 +222,8 @@ class ViewController: UIViewController, UIPickerViewDataSource, UIPickerViewDele
         // TODO: upload file and write to database (2-4)
         // Get storage reference and build metadata
         let uploadRef = self.storage.reference().child("uploads")
-        let dbRef = self.database.reference().child("uploads").childByAutoId()
-        let uploadFile = uploadRef.child(dbRef.key)
+        let dbRef = self.database.collection("uploads").document()
+        let uploadFile = uploadRef.child(dbRef.documentID)
         let metadata = StorageMetadata()
         metadata.contentType = "LINEAR16"
 
@@ -238,19 +238,38 @@ class ViewController: UIViewController, UIPickerViewDataSource, UIPickerViewDele
                     "encoding": "LINEAR16",
                     "sampleRate": 16000,
                     "language": (self.languageDict[self.selectedLanguage]?["locale"])! as String,
-                    "fullPath": "uploads/\(dbRef.key)"
+                    "fullPath": "uploads/\(dbRef.documentID)"
+                    //"fullPath": "uploads/\(dbRef.key)"
                 ] as [String : Any]
-                dbRef.setValue(dict, withCompletionBlock: { (error, ref) in
-                    if (error != nil) {
+                dbRef.setData(dict, completion: { error in
+                    if error != nil {
                         self.toast(message: "Failed to write to the database: \(String(describing: error))")
                     }
+                    
                 })
+                self.play()
             }
         }
     }
 
+    // for testing purposes only. Remove later
+    func  play() {
+        let fileURL = documentsDirectory().appendingPathComponent(fileName)
+        do {
+            audioPlayer = try AVAudioPlayer(contentsOf: fileURL as URL)
+            audioPlayer.delegate = self as! AVAudioPlayerDelegate
+            if audioPlayer.duration > 0.0 {
+                //setPlayButtonOn(flag: true)
+                audioPlayer.play()
+            }
+        } catch {
+            print("Error loading audioPlayer.")
+        }
+    }
+
+    
     // Handle login button
-    func loginButtonPressed(_ sender: AnyObject) {
+    @objc func loginButtonPressed(_ sender: AnyObject) {
         if (self.auth.currentUser != nil) {
             do {
                 try self.auth.signOut()
@@ -277,25 +296,44 @@ class ViewController: UIViewController, UIPickerViewDataSource, UIPickerViewDele
     func listenForTranslations() {
         // TODO: listen for new translations (7-8)
         // Get a reference to translations
-        let translationsRef = self.database.reference().child("translations")
+        let translationsRef = self.database.collection("translations")
+        //let translationsRef = self.database.reference().child("translations")
 
         // Listen to last child added
-        translationsRef.queryLimited(toLast: 1).observe(.childAdded, with: { (snapshot) in            self.listenForLanguage(translationRef: snapshot.ref, languageCode: self.selectedLanguage)
+        translationsRef.limit(to: 1).addSnapshotListener({ (snapshot, error) in
+            if let error = error {
+                print(error)
+            } else {
+                if (snapshot!.documents.count) > 0 {
+                    self.listenForLanguage(translationRef: (snapshot?.documents.first?.reference)!, languageCode: self.selectedLanguage)
+                }
+            }
         })
+            //.getDocuments(completion: { (documents, error) in
+        
+      //  translationsRef.queryLimited(toLast: 1).observe(.childAdded, with: { (snapshot) in            self.listenForLanguage(translationRef: snapshot.ref, languageCode: self.selectedLanguage)
+       // })
     }
 
-    func listenForLanguage(translationRef: DatabaseReference, languageCode: String) {
+    func listenForLanguage(translationRef: DocumentReference, languageCode: String) {
         // TODO: wait for our language (9-10)
         // Wait for our language to appear
-        let languageRef = translationRef.child(languageCode)
-        languageRef.observe(.value, with: { (snapshot) in
+        let languageRef = translationRef.collection("languages").document(languageCode)
+
+        languageRef.getDocument(completion: {(document, error) in
+            guard let data = document?.data() as? [String: String] else {print("failure"); return}
+            // Play the translation through the local text-to-speech
+            let translation = data["text"]
+            self.updateAndPlay(text: translation!)
+        })
+            /*.observe(.value, with: { (snapshot) in
             if (snapshot.value != nil) {
                 guard let data = snapshot.value as? [String: String] else { print("failure"); return }
                 // Play the translation through the local text-to-speech
                 let translation = data["text"]
                 self.updateAndPlay(text: translation!)
             }
-        })
+        })*/
     }
 
     func updateAndPlay(text: String) {
@@ -321,7 +359,7 @@ class ViewController: UIViewController, UIPickerViewDataSource, UIPickerViewDele
         self.perform(#selector(dismissAlertViewController), with: alertController, afterDelay: interval)
     }
 
-    func dismissAlertViewController(alertController: UIAlertController) {
+    @objc func dismissAlertViewController(alertController: UIAlertController) {
         alertController.dismiss(animated: true, completion: nil)
     }
 
