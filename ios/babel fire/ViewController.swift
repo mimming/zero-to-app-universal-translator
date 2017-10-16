@@ -309,10 +309,7 @@ class ViewController: UIViewController, UIPickerViewDataSource, UIPickerViewDele
                 }
             }
         })
-            //.getDocuments(completion: { (documents, error) in
         
-      //  translationsRef.queryLimited(toLast: 1).observe(.childAdded, with: { (snapshot) in            self.listenForLanguage(translationRef: snapshot.ref, languageCode: self.selectedLanguage)
-       // })
     }
 
     func listenForLanguage(translationRef: DocumentReference, languageCode: String) {
@@ -326,14 +323,6 @@ class ViewController: UIViewController, UIPickerViewDataSource, UIPickerViewDele
             let translation = data["text"]
             self.updateAndPlay(text: translation!)
         })
-            /*.observe(.value, with: { (snapshot) in
-            if (snapshot.value != nil) {
-                guard let data = snapshot.value as? [String: String] else { print("failure"); return }
-                // Play the translation through the local text-to-speech
-                let translation = data["text"]
-                self.updateAndPlay(text: translation!)
-            }
-        })*/
     }
 
     func updateAndPlay(text: String) {
