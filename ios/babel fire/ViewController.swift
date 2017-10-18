@@ -21,7 +21,7 @@ import Firebase
 import FirebaseAuthUI
 import FirebaseGoogleAuthUI
 
-class ViewController: UIViewController, UIPickerViewDataSource, UIPickerViewDelegate, AVAudioRecorderDelegate, AVSpeechSynthesizerDelegate, AVAudioPlayerDelegate, FUIAuthDelegate {
+class ViewController: UIViewController {
 
     // Global mutable state zomg evil
     var selectedLanguage: String = "en"
@@ -105,7 +105,9 @@ class ViewController: UIViewController, UIPickerViewDataSource, UIPickerViewDele
             try recordingSession.setActive(true)
             recordingSession.requestRecordPermission({ (allowed) in
                 if allowed {
-                    self.recordButton.isEnabled = true
+                    DispatchQueue.main.async {
+                        self.recordButton.isEnabled = true
+                    }
                 }
             })
         } catch {
@@ -140,29 +142,6 @@ class ViewController: UIViewController, UIPickerViewDataSource, UIPickerViewDele
             self.navigationItem.rightBarButtonItem?.title = "Log out"
             listenForTranslations()
         }
-    }
-
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
-    }
-
-    // UIPickerViewDataSource
-    func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int {
-        return languageArray.count
-    }
-
-    func numberOfComponents(in pickerView: UIPickerView) -> Int {
-        return 1;
-    }
-
-    // UIPickerViewDelegate
-    func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
-        return languageDict[languageArray[row]]?["name"]
-    }
-
-    func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
-        self.selectedLanguage = languageArray[row]
     }
 
     // Handle record button
@@ -205,17 +184,6 @@ class ViewController: UIViewController, UIPickerViewDataSource, UIPickerViewDele
         return FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
     }
 
-    // AVAudioRecorderDelegate
-    func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) {
-        // Check if the file was successfully uploaded
-        if (!flag) {
-            print("Failed to finish recording")
-            return
-        }
-
-        uploadFile()
-    }
-
     func uploadFile() {
         let file = documentsDirectory().appendingPathComponent(fileName)
 
@@ -238,8 +206,8 @@ class ViewController: UIViewController, UIPickerViewDataSource, UIPickerViewDele
                     "encoding": "LINEAR16",
                     "sampleRate": 16000,
                     "language": (self.languageDict[self.selectedLanguage]?["locale"])! as String,
-                    "fullPath": "uploads/\(dbRef.documentID)"
-                    //"fullPath": "uploads/\(dbRef.key)"
+                    "fullPath": "uploads/\(dbRef.documentID)",
+                    "timeCreated": FieldValue.serverTimestamp()
                 ] as [String : Any]
                 dbRef.setData(dict, completion: { error in
                     if error != nil {
@@ -247,26 +215,9 @@ class ViewController: UIViewController, UIPickerViewDataSource, UIPickerViewDele
                     }
                     
                 })
-                self.play()
             }
         }
     }
-
-    // for testing purposes only. Remove later
-    func  play() {
-        let fileURL = documentsDirectory().appendingPathComponent(fileName)
-        do {
-            audioPlayer = try AVAudioPlayer(contentsOf: fileURL as URL)
-            audioPlayer.delegate = self as! AVAudioPlayerDelegate
-            if audioPlayer.duration > 0.0 {
-                //setPlayButtonOn(flag: true)
-                audioPlayer.play()
-            }
-        } catch {
-            print("Error loading audioPlayer.")
-        }
-    }
-
     
     // Handle login button
     @objc func loginButtonPressed(_ sender: AnyObject) {
@@ -285,44 +236,40 @@ class ViewController: UIViewController, UIPickerViewDataSource, UIPickerViewDele
         }
     }
 
-    // FUIAuthDelegate
-    func authUI(_ authUI: FUIAuth, didSignInWith user: User?, error: Error?) {
-        if (error != nil) {
-            print("Failed to sign user in: \(String(describing: error))")
-            return
-        }
-    }
-
     func listenForTranslations() {
         // TODO: listen for new translations (7-8)
         // Get a reference to translations
         let translationsRef = self.database.collection("translations")
-        //let translationsRef = self.database.reference().child("translations")
 
         // Listen to last child added
-        translationsRef.limit(to: 1).addSnapshotListener({ (snapshot, error) in
+        translationsRef.order(by: "timestamp").addSnapshotListener({ (snapshot, error) in
             if let error = error {
                 print(error)
             } else {
                 if (snapshot!.documents.count) > 0 {
-                    self.listenForLanguage(translationRef: (snapshot?.documents.first?.reference)!, languageCode: self.selectedLanguage)
+                    self.listenForLanguage(translationRef: (snapshot?.documents.last?.reference)!, languageCode: self.selectedLanguage)
                 }
             }
         })
-        
     }
 
     func listenForLanguage(translationRef: DocumentReference, languageCode: String) {
         // TODO: wait for our language (9-10)
         // Wait for our language to appear
-        let languageRef = translationRef.collection("languages").document(languageCode)
-
-        languageRef.getDocument(completion: {(document, error) in
-            guard let data = document?.data() as? [String: String] else {print("failure"); return}
-            // Play the translation through the local text-to-speech
-            let translation = data["text"]
-            self.updateAndPlay(text: translation!)
+        
+        translationRef.getDocument(completion: {(document, error) in
+            
+            if let error = error {
+                print(error)
+                return
+            }
+            
+            if (document?.exists)! {
+                guard let data = document?.data() as [String: AnyObject]?, let languages = data["languages"] as? [String: String], let translation = languages[languageCode] else { print("failure"); return }
+                self.updateAndPlay(text: translation)
+            }
         })
+
     }
 
     func updateAndPlay(text: String) {
@@ -333,8 +280,62 @@ class ViewController: UIViewController, UIPickerViewDataSource, UIPickerViewDele
         utterance.voice = AVSpeechSynthesisVoice(language: locale)
         self.synthesizer.speak(utterance)
     }
+}
 
-    // AVSpeechSynthesizerDelegate
+// MARK: AVAudioRecorderDelegate
+
+extension ViewController: AVAudioRecorderDelegate {
+
+    func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) {
+        // Check if the file was successfully uploaded
+        if !flag {
+            print("Failed to finish recording")
+            return
+        }
+        
+        uploadFile()
+    }
+}
+
+extension ViewController: UIPickerViewDelegate, UIPickerViewDataSource {
+ 
+    // MARK: UIPickerViewDelegate
+    
+    func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
+        return languageDict[languageArray[row]]?["name"]
+    }
+    
+    func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
+        self.selectedLanguage = languageArray[row]
+    }
+
+    // MARK: UIPickerViewDataSource
+    
+    func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int {
+        return languageArray.count
+    }
+    
+    func numberOfComponents(in pickerView: UIPickerView) -> Int {
+        return 1
+    }
+}
+
+// MARK: FUIAuthDelegate
+
+extension ViewController: FUIAuthDelegate {
+    
+    func authUI(_ authUI: FUIAuth, didSignInWith user: User?, error: Error?) {
+        if (error != nil) {
+            print("Failed to sign user in: \(String(describing: error))")
+            return
+        }
+    }
+}
+
+// MARK: AVSpeechSynthesizerDelegate
+
+extension ViewController: AVSpeechSynthesizerDelegate {
+    
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
         self.synthesizer.stopSpeaking(at: .immediate)
     }
@@ -342,6 +343,7 @@ class ViewController: UIViewController, UIPickerViewDataSource, UIPickerViewDele
     func toast(message: String) {
         toast(message: message, interval: 1.0)
     }
+    
     func toast(message: String, interval: TimeInterval) {
         let alertController = UIAlertController(title: "babelfire", message: message, preferredStyle: .alert)
         present(alertController, animated: true, completion: nil)
