@@ -28,11 +28,10 @@ Copyright 2017 Google Inc.
         android:theme="@style/AppTheme"
         tools:replace="android:supportsRtl">
         <activity
-            android:name="com.google.example.babelfirelive.StartActivity"
+            android:name="com.google.example.babelfirelive.MainActivity"
             android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>

@@ -30,14 +30,14 @@ public class Recording {
     private String fullPath;
     private String language;
     private long sampleRate;
-    private String timeCreated;
+    private Date timeCreated;
     private long totalBytes;
     private String uid;
 
     public Recording(String filename, String language, String downloadUrl, String fullPath, long totalBytes) {
-        DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'");
-        dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
-        this.timeCreated = dateFormat.format(new Date());
+//        DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+//        dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+        this.timeCreated = new Date();
 
         this.contentType = "audio/amr";
         this.encoding = "AMR";
@@ -111,11 +111,11 @@ public class Recording {
         this.sampleRate = sampleRate;
     }
 
-    public String getTimeCreated() {
+    public Date getTimeCreated() {
         return timeCreated;
     }
 
-    public void setTimeCreated(String timeCreated) {
+    public void setTimeCreated(Date timeCreated) {
         this.timeCreated = timeCreated;
     }
 

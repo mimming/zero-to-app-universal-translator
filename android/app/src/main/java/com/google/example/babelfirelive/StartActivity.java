@@ -46,6 +46,10 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.firestore.CollectionReference;
+import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageMetadata;
 import com.google.firebase.storage.StorageReference;
@@ -101,6 +105,7 @@ public class StartActivity extends AppCompatActivity {
     private FirebaseStorage mStorage;
     private FirebaseDatabase mDatabase;
     private FirebaseAuth mAuth;
+    private FirebaseFirestore mFirestore;
 
     private Button mRecordButton;
     private View.OnClickListener mRecordButtonListener = new View.OnClickListener() {
@@ -216,23 +221,127 @@ public class StartActivity extends AppCompatActivity {
         mRecordButton = (Button) findViewById(R.id.record_button);
         mRecordButton.setOnClickListener(mRecordButtonListener);
 
-        // Cheer if you read this comment! 1
+        // 1 Set up Firebase
+        mDatabase = FirebaseDatabase.getInstance();
+        mStorage = FirebaseStorage.getInstance();
+        mAuth = FirebaseAuth.getInstance();
+        mFirestore = FirebaseFirestore.getInstance();
 
-
-
-    } // 5-6
-
-    private void uploadFile() { // 2-4
-
+        // 5 Set up FirebaseUI
+        if (mAuth.getCurrentUser() == null) {
+            // 6 Fire up the Firebase-UI Auth activity
+            startActivityForResult(
+                    AuthUI.getInstance()
+                            .createSignInIntentBuilder()
+                            .setProviders(Arrays.asList(
+                                    new AuthUI.IdpConfig.Builder(AuthUI.EMAIL_PROVIDER).build(),
+                                    new AuthUI.IdpConfig.Builder(AuthUI.GOOGLE_PROVIDER).build()))
+                            .build(),
+                    RC_SIGN_IN);
+            finish();
+        } else {
+            // logged in.  Time to listen for new translations.
+            listenForTranslations();
+        }
     }
 
-    private void listenForTranslations() { // 7-8
+    private void uploadFile() {
+        // 2 Get storage ref, and build metadata
+        StorageReference uploadRef = mStorage.getReference().child("uploads");
 
+        StorageReference uploadFile = uploadRef.child("foo" + ".amr");
+
+        StorageMetadata uploadMetadata = new StorageMetadata.Builder()
+                .setContentType("audio/amr")
+                .build();
+
+        // 3-4 Upload the file, and handle failure
+        uploadFile.putFile(Uri.fromFile(mRecording), uploadMetadata)
+                .addOnFailureListener(new OnFailureListener() {
+                    public void onFailure(@NonNull Exception e) {
+                        toast("Failed to upload audio :(");
+                    }}).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                toast("Uploaded!");
+
+                Recording recording = new Recording(
+                        mRecording.getName(),
+                        mLangCode,
+                        taskSnapshot.getDownloadUrl().toString(),
+                        taskSnapshot.getStorage().getPath().substring(1),
+                        taskSnapshot.getTotalByteCount()
+                );
+
+//                final DatabaseReference dbRef = mDatabase.getReference("uploads").push();
+//                dbRef.setValue(recording);
+                mFirestore.collection("uploads").add(recording).addOnSuccessListener(new OnSuccessListener<DocumentReference>() {
+                    @Override
+                    public void onSuccess(DocumentReference documentReference) {
+                        toast("DB write succeeded!");
+                    }
+                }).addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        toast("DB write failed!");
+                    }
+                });
+            }
+        });
+    }
+
+    private void listenForTranslations() {
+        // 7 Get a reference to translations
+//        DatabaseReference translationsRef = mDatabase.getReference().child("translations");
+//        CollectionReference translationsRef = mFirestore.collection("translations");
+
+        // 8 Listen to last child added
+//        translationsRef.limitToLast(1).addChildEventListener(new ChildEventListener() {
+//            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+//                mCurKey = dataSnapshot.getKey();
+//                listenForLanguage(mCurKey, mShortLangCode);
+//            }
+//
+//            public void onChildChanged(DataSnapshot dataSnapshot, String s) { }
+//            public void onChildRemoved(DataSnapshot dataSnapshot) { }
+//            public void onChildMoved(DataSnapshot dataSnapshot, String s) { }
+//            public void onCancelled(DatabaseError databaseError) { }
+//        });
+        CollectionReference translationsRef = mFirestore.collection("translations");
+        translationsRef.orderBy("timestamp").limit(1).get().addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
+            @Override
+            public void onComplete(@NonNull Task<QuerySnapshot> task) {
+                if (task.isSuccessful()) {
+                    QuerySnapshot document = task.getResult();
+                    if (document != null) {
+                        Log.d(TAG, "DocumentSnapshot data: " + task.getResult().getDocuments());
+                    } else {
+                        Log.d(TAG, "No such document");
+                    }
+                } else {
+                    Log.d(TAG, "get failed with ", task.getException());
+                }
+            }
+        });
     }
 
     private void listenForLanguage(String translationKey, final String languageCode) {
-        if(translationKey != null) { // 9-10
+        System.out.println("translation key: " + translationKey + " language code: " + languageCode);
+        if(translationKey != null && languageCode != null) { // 9-10
+            DatabaseReference langRef = mDatabase.getReference().child("translations")
+                    .child(translationKey).child(languageCode).child("text");
 
+            if (mCurrentLanguageListener != null) {
+                langRef.removeEventListener(mCurrentLanguageListener);
+            }
+
+            mCurrentLanguageListener = langRef.addValueEventListener(new ValueEventListener() {
+                public void onDataChange(DataSnapshot dataSnapshot) {
+                    String translation = dataSnapshot.getValue(String.class);
+                    updateAndPlay(translation, languageCode);
+                }
+
+                public void onCancelled(DatabaseError databaseError) { }
+            });
         }
     }
 
