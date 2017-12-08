@@ -14,14 +14,19 @@
 *  limitations under the License.
 */
 
-package com.google.example.babelfire;
+package com.google.example.babelfirelive;
 
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.media.MediaRecorder;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.speech.tts.TextToSpeech;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
@@ -35,21 +40,42 @@ import com.firebase.ui.auth.AuthUI;
 import com.firebase.ui.auth.IdpResponse;
 import com.firebase.ui.auth.ResultCodes;
 import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.ChildEventListener;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.firestore.CollectionReference;
+import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.EventListener;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.FirebaseFirestoreException;
+import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageMetadata;
+import com.google.firebase.storage.StorageReference;
+import com.google.firebase.storage.UploadTask;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 
-public class StartActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity {
 
-    private static final String TAG = StartActivity.class.getSimpleName();
+    private static final String TAG = MainActivity.class.getSimpleName();
 
     private static final Map<String, String> LANGUAGE_CODES = new HashMap<String, String>() {{
         put("English (United States)", "en-US");
@@ -59,6 +85,8 @@ public class StartActivity extends AppCompatActivity {
         put("日本語（日本）", "ja-JP");
         put("हिन्दी (भारत)", "hi-IN");
         put("Nederlands (Nederland)", "nl-NL");
+        put("French (France)", "fr-FR");
+        put("Polish (Poland)", "pl-PL");
     }};
     private static final Map<String, String> LANGUAGE_SHORT_CODES = new HashMap<String, String>() {{
         put("English (United States)", "en");
@@ -68,9 +96,12 @@ public class StartActivity extends AppCompatActivity {
         put("日本語（日本）", "ja");
         put("हिन्दी (भारत)", "hi");
         put("Nederlands (Nederland)", "nl");
+        put("French (France)", "fr");
+        put("Polish (Poland)", "pl");
     }};
 
     public static final short RC_SIGN_IN = 42;
+    public static final int MY_PERMISSIONS_REQUEST_RECORD_AUDIO = 1;
 
     private MediaRecorder mRecorder;
     private boolean mIsRecording = false;
@@ -88,8 +119,8 @@ public class StartActivity extends AppCompatActivity {
     private ValueEventListener mCurrentLanguageListener;
 
     private FirebaseStorage mStorage;
-    private FirebaseDatabase mDatabase;
     private FirebaseAuth mAuth;
+    private FirebaseFirestore mFirestore;
 
     private Button mRecordButton;
     private View.OnClickListener mRecordButtonListener = new View.OnClickListener() {
@@ -107,7 +138,7 @@ public class StartActivity extends AppCompatActivity {
                     mRecorder.setOutputFormat(MediaRecorder.OutputFormat.AMR_NB);
                     mRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
 
-                    File outputDir = StartActivity.this.getCacheDir();
+                    File outputDir = MainActivity.this.getCacheDir();
                     mRecording = File.createTempFile("audio", ".amr", outputDir);
 
                     Log.d(TAG, "Recording to " + mRecording);
@@ -191,11 +222,11 @@ public class StartActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 AuthUI.getInstance()
-                    .signOut(StartActivity.this)
+                    .signOut(MainActivity.this)
                     .addOnCompleteListener(new OnCompleteListener<Void>() {
                         public void onComplete(@NonNull Task<Void> task) {
                             // user is now signed out
-                            startActivity(new Intent(getApplicationContext(), StartActivity.class));
+                            startActivity(new Intent(getApplicationContext(), MainActivity.class));
                             finish();
                         }
                     });
@@ -205,21 +236,125 @@ public class StartActivity extends AppCompatActivity {
         // Record button stuff
         mRecordButton = (Button) findViewById(R.id.record_button);
         mRecordButton.setOnClickListener(mRecordButtonListener);
+        if (ContextCompat.checkSelfPermission(this, "android.permission.RECORD_AUDIO") != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{"android.permission.RECORD_AUDIO"}, MY_PERMISSIONS_REQUEST_RECORD_AUDIO);
+        }
 
-        // Cheer if you read this comment!
+        // TODO 1: Set up Firebase
+        mStorage = FirebaseStorage.getInstance();
+        mAuth = FirebaseAuth.getInstance();
+        mFirestore = FirebaseFirestore.getInstance();
 
+        // TODO 5: Add authentication
+        if (mAuth.getCurrentUser() == null) {
+            // TODO 6: Initiate signin flow
+            startActivityForResult(
+                    AuthUI.getInstance()
+                            .createSignInIntentBuilder()
+                            .setProviders(Arrays.asList(new AuthUI.IdpConfig.Builder(AuthUI.EMAIL_PROVIDER).build(),
+                                    new AuthUI.IdpConfig.Builder(AuthUI.GOOGLE_PROVIDER).build()))
+                            .build(),
+                    RC_SIGN_IN);
+        } else {
+            // Time to listen for new translations.
+            listenForTranslations();
+        }
 
     }
 
     private void uploadFile() {
+        // TODO 2: Get storage ref, and build metadata
+        StorageReference uploadRef = mStorage.getReference().child("uploads");
+        final DocumentReference docRef = mFirestore.collection("uploads").document();
+
+        StorageReference uploadFile = uploadRef.child(docRef.getId() + ".amr");
+        StorageMetadata uploadMetadata = new StorageMetadata.Builder()
+                .setContentType("audio/amr")
+                .build();
+
+        // TODO 3: Upload the file
+        uploadFile.putFile(Uri.fromFile(mRecording), uploadMetadata)
+
+        // TODO 4: Add completion listeners, write to Firestore
+                .addOnFailureListener(new OnFailureListener() {
+                    public void onFailure(@NonNull Exception e) {
+                        toast("Failed to upload audio :(");
+                    }})
+                .addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                    public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                        toast("Uploaded!");
+
+                        Recording recording = new Recording(mRecording.getName(), mLangCode,
+                                taskSnapshot.getDownloadUrl().toString(),
+                                taskSnapshot.getStorage().getPath().substring(1),
+                                taskSnapshot.getTotalByteCount());
+
+                        docRef.set(recording)
+                                .addOnSuccessListener(new OnSuccessListener<Void>() {
+                                    @Override
+                                    public void onSuccess(Void aVoid) {
+                                        toast("Successfully written!");
+                                    }
+                                })
+                                .addOnFailureListener(new OnFailureListener() {
+                                    @Override
+                                    public void onFailure(@NonNull Exception e) {
+                                        toast("Error writing document");
+                                    }
+                                });
+                    }
+                });
+
     }
 
     private void listenForTranslations() {
+        // TODO 7: Get a reference to translations
+        CollectionReference translationsRef = mFirestore.collection("translations");
+
+        // TODO 8: Listen to last child added
+        translationsRef.orderBy("timestamp", Query.Direction.DESCENDING).limit(1).addSnapshotListener(new EventListener<QuerySnapshot>() {
+            @Override
+            public void onEvent(QuerySnapshot documentSnapshots, FirebaseFirestoreException e) {
+                if (documentSnapshots != null) {
+                    List<DocumentSnapshot> docs = documentSnapshots.getDocuments();
+                    if (!docs.isEmpty()) {
+                        DocumentSnapshot doc = docs.get(0);
+                        mCurKey = doc.getId();
+                        listenForLanguage(mCurKey, mShortLangCode);
+                    } else {
+                        toast("No document returned");
+                    }
+                } else {
+                    toast("No such document");
+                }
+            }
+        });
+
     }
 
     private void listenForLanguage(String translationKey, final String languageCode) {
-        if(translationKey != null) {
-
+        if(translationKey != null && languageCode != null) {
+            // TODO 9: Get a particular translation
+            DocumentReference languageRef = mFirestore.collection("translations").document(translationKey);
+            languageRef.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+                @Override
+                public void onComplete(@NonNull Task<DocumentSnapshot> task) {
+                    if (task.isSuccessful()) {
+                        DocumentSnapshot document = task.getResult();
+                        if (document != null) {
+                            Map<String, Object> data = document.getData();
+                            Map<String, String> languages = (Map<String, String>) data.get("languages");
+                            String translation = languages.get(languageCode);
+                            toast("translation " + translation);
+                            updateAndPlay(translation, languageCode);
+                        } else {
+                            Log.d(TAG, "No such document");
+                        }
+                    } else {
+                        Log.d(TAG, "get failed with ", task.getException());
+                    }
+                }
+            });
         }
     }
 
@@ -235,7 +370,7 @@ public class StartActivity extends AppCompatActivity {
     }
 
     private void toast(String message) {
-        Toast.makeText(StartActivity.this, message,
+        Toast.makeText(MainActivity.this, message,
             Toast.LENGTH_SHORT).show();
     }
 
@@ -249,12 +384,26 @@ public class StartActivity extends AppCompatActivity {
             if (resultCode == ResultCodes.OK) {
                 // Successfully signed in
                 Intent intent = IdpResponse.getIntent(response);
-                intent.setClass(this, StartActivity.class);
+                intent.setClass(this, MainActivity.class);
                 startActivity(intent);
                 finish();
             } else {
                 // Sign in failed
                 toast("Sign in failed :(");
+            }
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
+        switch (requestCode) {
+            case MY_PERMISSIONS_REQUEST_RECORD_AUDIO: {
+                if (grantResults.length > 0  && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    toast("permission granted");
+                } else {
+                    toast("permission denied");
+                }
+                return;
             }
         }
     }

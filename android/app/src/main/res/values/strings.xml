@@ -14,7 +14,7 @@ Copyright 2017 Google Inc.
  limitations under the License.
 -->
 <resources>
-    <string name="app_name">BabelFire</string>
+    <string name="app_name">BabelFire Live</string>
     <string name="user_language">Language</string>
     <string name="translated">Translated:</string>
     <string name="sign_out">Sign out</string>

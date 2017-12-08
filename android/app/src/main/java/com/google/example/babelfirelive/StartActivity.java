@@ -14,7 +14,7 @@
 *  limitations under the License.
 */
 
-package com.google.example.babelfire;
+package com.google.example.babelfirelive;
 
 import android.content.Intent;
 import android.media.MediaRecorder;
@@ -46,6 +46,10 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.firestore.CollectionReference;
+import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageMetadata;
 import com.google.firebase.storage.StorageReference;
@@ -58,9 +62,9 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
-public class MainActivity extends AppCompatActivity {
+public class StartActivity extends AppCompatActivity {
 
-    private static final String TAG = MainActivity.class.getSimpleName();
+    private static final String TAG = StartActivity.class.getSimpleName();
 
     private static final Map<String, String> LANGUAGE_CODES = new HashMap<String, String>() {{
         put("English (United States)", "en-US");
@@ -70,8 +74,6 @@ public class MainActivity extends AppCompatActivity {
         put("日本語（日本）", "ja-JP");
         put("हिन्दी (भारत)", "hi-IN");
         put("Nederlands (Nederland)", "nl-NL");
-        put("French (France)", "fr-FR");
-        put("Polish (Poland)", "pl-PL");
     }};
     private static final Map<String, String> LANGUAGE_SHORT_CODES = new HashMap<String, String>() {{
         put("English (United States)", "en");
@@ -81,8 +83,6 @@ public class MainActivity extends AppCompatActivity {
         put("日本語（日本）", "ja");
         put("हिन्दी (भारत)", "hi");
         put("Nederlands (Nederland)", "nl");
-        put("French (France)", "fr");
-        put("Polish (Poland)", "pl");
     }};
 
     public static final short RC_SIGN_IN = 42;
@@ -105,6 +105,7 @@ public class MainActivity extends AppCompatActivity {
     private FirebaseStorage mStorage;
     private FirebaseDatabase mDatabase;
     private FirebaseAuth mAuth;
+    private FirebaseFirestore mFirestore;
 
     private Button mRecordButton;
     private View.OnClickListener mRecordButtonListener = new View.OnClickListener() {
@@ -122,7 +123,7 @@ public class MainActivity extends AppCompatActivity {
                     mRecorder.setOutputFormat(MediaRecorder.OutputFormat.AMR_NB);
                     mRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
 
-                    File outputDir = MainActivity.this.getCacheDir();
+                    File outputDir = StartActivity.this.getCacheDir();
                     mRecording = File.createTempFile("audio", ".amr", outputDir);
 
                     Log.d(TAG, "Recording to " + mRecording);
@@ -201,16 +202,15 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
-
         signOutButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 AuthUI.getInstance()
-                    .signOut(MainActivity.this)
+                    .signOut(StartActivity.this)
                     .addOnCompleteListener(new OnCompleteListener<Void>() {
                         public void onComplete(@NonNull Task<Void> task) {
                             // user is now signed out
-                            startActivity(new Intent(getApplicationContext(), MainActivity.class));
+                            startActivity(new Intent(getApplicationContext(), StartActivity.class));
                             finish();
                         }
                     });
@@ -221,21 +221,24 @@ public class MainActivity extends AppCompatActivity {
         mRecordButton = (Button) findViewById(R.id.record_button);
         mRecordButton.setOnClickListener(mRecordButtonListener);
 
-        // Set up Firebase
+        // 1 Set up Firebase
         mDatabase = FirebaseDatabase.getInstance();
         mStorage = FirebaseStorage.getInstance();
         mAuth = FirebaseAuth.getInstance();
+        mFirestore = FirebaseFirestore.getInstance();
 
-        // Set up FirebaseUI
+        // 5 Set up FirebaseUI
         if (mAuth.getCurrentUser() == null) {
-            // not logged in
+            // 6 Fire up the Firebase-UI Auth activity
             startActivityForResult(
-                AuthUI.getInstance()
-                    .createSignInIntentBuilder()
-                    .setProviders(Arrays.asList(new AuthUI.IdpConfig.Builder(AuthUI.EMAIL_PROVIDER).build(),
-                        new AuthUI.IdpConfig.Builder(AuthUI.GOOGLE_PROVIDER).build()))
-                    .build(),
-                RC_SIGN_IN);
+                    AuthUI.getInstance()
+                            .createSignInIntentBuilder()
+                            .setProviders(Arrays.asList(
+                                    new AuthUI.IdpConfig.Builder(AuthUI.EMAIL_PROVIDER).build(),
+                                    new AuthUI.IdpConfig.Builder(AuthUI.GOOGLE_PROVIDER).build()))
+                            .build(),
+                    RC_SIGN_IN);
+            finish();
         } else {
             // logged in.  Time to listen for new translations.
             listenForTranslations();
@@ -243,61 +246,90 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void uploadFile() {
-        // Get storage ref, and build metadata
+        // 2 Get storage ref, and build metadata
         StorageReference uploadRef = mStorage.getReference().child("uploads");
-        final DatabaseReference dbRef = mDatabase.getReference("uploads").push();
 
-        StorageReference uploadFile = uploadRef.child(dbRef.getKey() + ".amr");
+        StorageReference uploadFile = uploadRef.child("foo" + ".amr");
 
         StorageMetadata uploadMetadata = new StorageMetadata.Builder()
-            .setContentType("audio/amr")
-            .build();
+                .setContentType("audio/amr")
+                .build();
 
-        // Upload the file, and handle failure
+        // 3-4 Upload the file, and handle failure
         uploadFile.putFile(Uri.fromFile(mRecording), uploadMetadata)
-            .addOnFailureListener(new OnFailureListener() {
-                public void onFailure(@NonNull Exception e) {
-                    toast("Failed to upload audio :(");
-                }})
-            // Handle success
-            .addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
-                public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-                    toast("Uploaded!");
+                .addOnFailureListener(new OnFailureListener() {
+                    public void onFailure(@NonNull Exception e) {
+                        toast("Failed to upload audio :(");
+                    }}).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                toast("Uploaded!");
 
-                    Recording recording = new Recording(mRecording.getName(), mLangCode,
+                Recording recording = new Recording(
+                        mRecording.getName(),
+                        mLangCode,
                         taskSnapshot.getDownloadUrl().toString(),
                         taskSnapshot.getStorage().getPath().substring(1),
-                        taskSnapshot.getTotalByteCount());
+                        taskSnapshot.getTotalByteCount()
+                );
 
-                    dbRef.setValue(recording);
-                }
-            });
+//                final DatabaseReference dbRef = mDatabase.getReference("uploads").push();
+//                dbRef.setValue(recording);
+                mFirestore.collection("uploads").add(recording).addOnSuccessListener(new OnSuccessListener<DocumentReference>() {
+                    @Override
+                    public void onSuccess(DocumentReference documentReference) {
+                        toast("DB write succeeded!");
+                    }
+                }).addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        toast("DB write failed!");
+                    }
+                });
+            }
+        });
     }
 
     private void listenForTranslations() {
-        // Get a reference to translations
-        DatabaseReference translationsRef = mDatabase.getReference().child("translations");
+        // 7 Get a reference to translations
+//        DatabaseReference translationsRef = mDatabase.getReference().child("translations");
+//        CollectionReference translationsRef = mFirestore.collection("translations");
 
-        // Listen to last child added
-        translationsRef.limitToLast(1).addChildEventListener(new ChildEventListener() {
-            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
-                mCurKey = dataSnapshot.getKey();
-                listenForLanguage(mCurKey, mShortLangCode);
+        // 8 Listen to last child added
+//        translationsRef.limitToLast(1).addChildEventListener(new ChildEventListener() {
+//            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+//                mCurKey = dataSnapshot.getKey();
+//                listenForLanguage(mCurKey, mShortLangCode);
+//            }
+//
+//            public void onChildChanged(DataSnapshot dataSnapshot, String s) { }
+//            public void onChildRemoved(DataSnapshot dataSnapshot) { }
+//            public void onChildMoved(DataSnapshot dataSnapshot, String s) { }
+//            public void onCancelled(DatabaseError databaseError) { }
+//        });
+        CollectionReference translationsRef = mFirestore.collection("translations");
+        translationsRef.orderBy("timestamp").limit(1).get().addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
+            @Override
+            public void onComplete(@NonNull Task<QuerySnapshot> task) {
+                if (task.isSuccessful()) {
+                    QuerySnapshot document = task.getResult();
+                    if (document != null) {
+                        Log.d(TAG, "DocumentSnapshot data: " + task.getResult().getDocuments());
+                    } else {
+                        Log.d(TAG, "No such document");
+                    }
+                } else {
+                    Log.d(TAG, "get failed with ", task.getException());
+                }
             }
-
-            public void onChildChanged(DataSnapshot dataSnapshot, String s) { }
-            public void onChildRemoved(DataSnapshot dataSnapshot) { }
-            public void onChildMoved(DataSnapshot dataSnapshot, String s) { }
-            public void onCancelled(DatabaseError databaseError) { }
         });
     }
 
     private void listenForLanguage(String translationKey, final String languageCode) {
-        if(translationKey != null) {
+        System.out.println("translation key: " + translationKey + " language code: " + languageCode);
+        if(translationKey != null && languageCode != null) { // 9-10
             DatabaseReference langRef = mDatabase.getReference().child("translations")
-                .child(translationKey).child(languageCode).child("text");
+                    .child(translationKey).child(languageCode).child("text");
 
-            // don't leak listeners :)
             if (mCurrentLanguageListener != null) {
                 langRef.removeEventListener(mCurrentLanguageListener);
             }
@@ -325,7 +357,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void toast(String message) {
-        Toast.makeText(MainActivity.this, message,
+        Toast.makeText(StartActivity.this, message,
             Toast.LENGTH_SHORT).show();
     }
 
@@ -339,7 +371,7 @@ public class MainActivity extends AppCompatActivity {
             if (resultCode == ResultCodes.OK) {
                 // Successfully signed in
                 Intent intent = IdpResponse.getIntent(response);
-                intent.setClass(this, MainActivity.class);
+                intent.setClass(this, StartActivity.class);
                 startActivity(intent);
                 finish();
             } else {
